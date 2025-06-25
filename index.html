@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Life Journey</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+        
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #222;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            overflow: hidden;
+        }
+        .game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        canvas {
+            background-color: #0a0a1a;
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .cv-display, .game-over, .game-complete {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: transparent;
+            color: white;
+            display: none;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            text-align: center;
+            padding: 40px 20px;
+            box-sizing: border-box;
+        }
+        #cvContent {
+            max-width: 900px;
+            margin-bottom: 30px;
+            line-height: 1.6;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            background-color: transparent;
+            padding: 20px;
+            color: white;
+        }
+        
+        #cvContent h2 {
+            color: white;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            margin-bottom: 15px;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        
+        #cvContent p {
+            color: #e0e0e0;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        .cv-section {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+            flex-wrap: wrap;
+            text-align: left;
+            width: 100%;
+        }
+        .logo-img {
+            width: 24px;
+            height: 24px;
+            margin-right: 10px;
+            background-color: #444;
+            border: 1px solid white;
+            border-radius: 3px;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+        
+        button {
+            padding: 12px 24px;
+            font-size: 18px;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            background-color: transparent;
+            color: white;
+            border: 2px solid white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background-color: white;
+            color: black;
+        }
+        .game-over, .game-complete {
+            background-color: rgba(0, 0, 20, 0.9);
+            justify-content: center;
+        }
+        .game-complete h2 {
+            color: #4CAF50;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-size: 32px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <div id="cvDisplay" class="cv-display">
+            <div id="cvContent"></div>
+            <button id="continueBtn">Continue Journey (Space)</button>
+        </div>
+        <div id="gameOver" class="game-over">
+            <h2>Oops! Let's try that again</h2>
+            <button id="restartBtn">Try Again (Space)</button>
+        </div>
+        <div id="gameComplete" class="game-complete">
+            <h2>🎉 Journey Complete! 🎉</h2>
+            <p style="font-size: 20px; margin-bottom: 30px;">You've successfully navigated through all life milestones!</p>
+            <button id="restartCompleteBtn">Start New Journey (Space)</button>
+        </div>
+    </div>
+    <script>
+        // Game Canvas Setup
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const cvDisplay = document.getElementById('cvDisplay');
+        const cvContent = document.getElementById('cvContent');
+        const continueBtn = document.getElementById('continueBtn');
+        const gameOver = document.getElementById('gameOver');
+        const restartBtn = document.getElementById('restartBtn');
+        const gameComplete = document.getElementById('gameComplete');
+        const restartCompleteBtn = document.getElementById('restartCompleteBtn');
+        
+        // Game Constants
+        const GAME_SPEED = 4;
+        const JUMP_POWER = -15;
+        const GRAVITY = 0.6;
+        const STAR_SPEED = 0.2;
+        const MOON_SPEED = 0.1;
+        
+        // Set canvas size to full screen
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            // Update game objects positions based on new canvas size
+            dino.groundY = canvas.height - 100;
+            dino.y = dino.groundY;
+            
+            // Update moon position
+            moon.x = canvas.width - 150;
+            moon.y = 80;
+        }
+        
+        // Game State
+        let gameSpeed = GAME_SPEED;
+        let gameRunning = false;
+        let currentCvPoint = 0;
+        let lastCvPoint = -1;
+        let score = 0;
+        let lastCactusTime = 0;
+        const cactusInterval = 1000;
+        const initialCactusInterval = 2000;
+        let gameStartTime = 0;
+        let showWelcomeMessage = true;
+        let gameCompleted = false;
+        
+        // CV Data - Your actual life journey
+        const cvData = [
+            {
+                title: "Education Foundation",
+                description: `
+                    <div class="cv-section">
+                        <img src="college.png" class="logo-img" alt="College">
+                        <p><strong>B.Tech Production & Industrial Engineering - BIT Mesra (2018-2022) - 8.33 CGPA</strong></p>
+                    </div>
+                    <div class="cv-section">
+                        <img src="iit.png" class="logo-img" alt="IIT">
+                        <p><strong>B.Sc. Data Science & Programming - IIT Madras (2021-2024) - 8.78 CGPA</strong></p>
+                    </div>
+                    <div class="cv-section">
+                        <img src="mdi.png" class="logo-img" alt="MDI">
+                        <p><strong>Post Graduate Diploma in Management at MDI Gurgaon (2025-present)</strong></p>
+                    </div>
+                `
+            },
+            {
+                title: "Awards & Recognition",
+                description: `
+                    <div class="cv-section">
+                        <img src="tata.png" class="logo-img" alt="Tata">
+                        <p><strong>Tata Millennium Scholarship for excellent academic performance</strong></p>
+                    </div>
+                    <div class="cv-section">
+                        <img src="trophy.jpeg" class="logo-img" alt="Trophy">
+                        <p><strong>2nd Prize at BITOTSAV'20 event Talkies at BIT Mesra</strong></p>
+                    </div>
+                    <div class="cv-section">
+                        <img src="trophy.jpeg" class="logo-img" alt="Trophy">
+                        <p><strong>2nd Prize at Ballyhoo AdMad competition at BIT Mesra</strong></p>
+                    </div>
+                `
+            },
+            {
+                title: "Publications & Projects",
+                description: `
+                    <div class="cv-section">
+                        <img src="springer.png" class="logo-img" alt="Springer">
+                        <p><strong>Published Research Paper - Springer (July 2023)</strong></p>
+                        <p>• Solved Multiple Traveling Salesmen Problem Using Prim's and Dijkstra's Algorithm</p>
+                    </div>
+                    <div class="cv-section">
+                        <img src="project.png" class="logo-img" alt="Project">
+                        <p><strong>Route Optimization System for Medical Representatives</strong></p>
+                        <p>• Optimized medical reps' visit routes using TSP and priority scoring, and built a generative AI chatbot for efficient data access using Gemini-Pro on Azure with SQL backend.</p>
+                    </div>
+                `
+            },
+            {
+                title: "Technology Consultant at PwC",
+                description: `
+                    <div class="cv-section">
+                        <img src="pharma.png" class="logo-img" alt="Automation">
+                        <p><strong>First Major Project (Pharma client):</strong></p>
+                        <p>• Spearheaded the design and execution of a plant scheduling project leveraging Python and advanced Pandas techniques</p>
+                        <p>• Implemented linear programming algorithms to optimize scheduling processes, maximizing efficiency and resource allocation</p>
+                    </div>
+                `
+            },
+            {
+                title: "Industry Impact - Banking and Analytics",
+                description: `
+                    <div class="cv-section">
+                        <img src="banking.png" class="logo-img" alt="Banking">
+                        <p><strong>Banking:</strong></p>
+                        <p>• Worked on banking analytics projects at PwC, delivering data-driven insights for risk assessment, customer segmentation, and process optimization</p>
+                    </div>
+                    <div class="cv-section">
+                        <img src="analytics.jpg" class="logo-img" alt="Pharma">
+                        <p><strong>Advanced Analytics:</strong></p>
+                        <p>• Performed data analytics at PwC using Python, applying hypothesis testing and statistical methods to drive business insights and decision-making</p>
+                        <p>• Created solutions for Clustering Techniques, Hypothesis Testing & T-tests & P-tests for Statistical Analysis</p>
+                    </div>
+                `
+            },
+            {
+                title: "Skill Set",
+                description: `
+                    <div class="cv-section">
+                        <img src="python.png" class="logo-img" alt="Python">
+                        <p><strong>Programming:</strong> Python, Machine Learning, Data Structures & Algorithms</p><br>
+                        <p><strong>Web Development:</strong> HTML/CSS/JavaScript, Flask</p><br>
+                        <p><strong>Cloud:</strong> Microsoft Azure, Google Cloud Platform, Vertex AI</p><br>
+                        <p><strong>Other Tools:</strong> GitHub/Bitbucket, Microsoft SQL Server</p>
+                    </div>
+                `
+            },
+            {
+                title: "Certifications",
+                description: `
+                    <div class="cv-section">
+                        <img src="microsoft.png" class="logo-img" alt="Microsoft">
+                        <p><strong>Azure AI Engineer Associate (AI-102) - August 2024</strong></p>
+                    </div>
+                    <div class="cv-section">
+                        <img src="microsoft.png" class="logo-img" alt="Microsoft">
+                        <p><strong>Azure AI Fundamentals (AI-900) - February 2024</strong></p>
+                    </div>
+                    <div class="cv-section">
+                        <img src="microsoft.png" class="logo-img" alt="Microsoft">
+                        <p><strong>Power Platform Fundamentals (PL-900) - January 2023</strong></p>
+                    </div>
+                `
+            }
+        ];
+        
+        // Game Objects
+        const dino = {
+            x: 50,
+            y: 200,
+            width: 40,
+            height: 60,
+            jumping: false,
+            jumpVelocity: 0,
+            gravity: GRAVITY,
+            jumpPower: JUMP_POWER,
+            groundY: 200,
+            color: '#4CAF50'
+        };
+        
+        const cactuses = [];
+        const stars = [];
+        
+        // Moon with movement
+        const moon = {
+            x: 650,
+            y: 60,
+            radius: 30,
+            originalX: 650
+        };
+        
+        // Initialize canvas and create stars
+        function init() {
+            resizeCanvas();
+            
+            // Create stars for background
+            stars.length = 0;
+            for (let i = 0; i < 200; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 2 + 1,
+                    opacity: Math.random(),
+                    speed: Math.random() * STAR_SPEED + 0.1
+                });
+            }
+        }
+        
+        // Game Functions
+        function createCactus() {
+            if (currentCvPoint < cvData.length) {
+                cactuses.push({
+                    x: canvas.width,
+                    y: dino.groundY - 40 + Math.random() * 20,
+                    width: 20 + Math.random() * 20,
+                    height: 30 + Math.random() * 20,
+                    speed: gameSpeed,
+                    passed: false,
+                    cvPoint: currentCvPoint,
+                    title: cvData[currentCvPoint].title
+                });
+                currentCvPoint++;
+                lastCactusTime = Date.now();
+                showWelcomeMessage = false;
+            }
+        }
+        
+        function updateDino() {
+            if (dino.jumping) {
+                dino.y += dino.jumpVelocity;
+                dino.jumpVelocity += dino.gravity;
+                
+                if (dino.y >= dino.groundY) {
+                    dino.y = dino.groundY;
+                    dino.jumping = false;
+                }
+            }
+        }
+        
+        function updateBackground() {
+            // Move stars slowly
+            stars.forEach(star => {
+                star.x -= star.speed;
+                if (star.x < 0) {
+                    star.x = canvas.width;
+                    star.y = Math.random() * canvas.height;
+                }
+            });
+            
+            // Move moon slowly
+            moon.x -= MOON_SPEED;
+            if (moon.x < -moon.radius) {
+                moon.x = canvas.width + moon.radius;
+            }
+        }
+        
+        function updateCactuses() {
+            for (let i = 0; i < cactuses.length; i++) {
+                cactuses[i].x -= cactuses[i].speed;
+                
+                // Check if dino passed the cactus
+                if (!cactuses[i].passed && dino.x > cactuses[i].x + cactuses[i].width) {
+                    cactuses[i].passed = true;
+                    score++;
+                    showCvPoint(cactuses[i].cvPoint);
+                }
+                
+                // Check collision
+                if (
+                    dino.x < cactuses[i].x + cactuses[i].width &&
+                    dino.x + dino.width > cactuses[i].x &&
+                    dino.y < cactuses[i].y + cactuses[i].height &&
+                    dino.y + dino.height > cactuses[i].y
+                ) {
+                    gameOver.style.display = 'flex';
+                    gameRunning = false;
+                }
+            }
+            
+            // Remove cactuses that are off screen
+            while (cactuses.length > 0 && cactuses[0].x + cactuses[0].width < 0) {
+                cactuses.shift();
+            }
+        }
+        
+        function showCvPoint(pointIndex) {
+            if (pointIndex > lastCvPoint) {
+                lastCvPoint = pointIndex;
+                const point = cvData[pointIndex];
+                cvContent.innerHTML = `<h2>${point.title}</h2>${point.description}`;
+                cvDisplay.style.display = 'flex';
+                gameRunning = false;
+                
+                // Check if game is complete
+                if (score >= cvData.length) {
+                    gameCompleted = true;
+                }
+            }
+        }
+        
+        function jump() {
+            if (!dino.jumping) {
+                dino.jumping = true;
+                dino.jumpVelocity = dino.jumpPower;
+            }
+        }
+        
+        function drawCharacter() {
+            // Simple animal-like character with photo head
+            ctx.fillStyle = '#8B4513'; // Brown body
+            
+            // Body
+            ctx.fillRect(dino.x, dino.y - 40, 30, 30);
+            
+            // Legs
+            ctx.fillRect(dino.x + 5, dino.y - 10, 8, 15);
+            ctx.fillRect(dino.x + 17, dino.y - 10, 8, 15);
+            
+            // Tail
+            ctx.fillRect(dino.x - 8, dino.y - 35, 12, 8);
+            
+            // Draw the photo as head
+            const img = new Image();
+            img.src = 'photo.png';
+            
+            // Only draw if image is loaded, otherwise show placeholder
+            if (img.complete && img.naturalHeight !== 0) {
+                ctx.drawImage(img, dino.x + 5, dino.y - 60, 30, 30);
+            } else {
+                // Fallback placeholder head
+                ctx.fillStyle = '#DEB887';
+                ctx.fillRect(dino.x + 5, dino.y - 60, 30, 30);
+                ctx.fillStyle = 'white';
+                ctx.font = '10px JetBrains Mono, monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('PHOTO', dino.x + 20, dino.y - 40);
+                ctx.textAlign = 'left';
+            }
+        }
+        
+        function draw() {
+            // Clear canvas
+            ctx.fillStyle = '#0a0a1a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw stars
+            ctx.fillStyle = 'white';
+            stars.forEach(star => {
+                ctx.globalAlpha = star.opacity;
+                ctx.fillRect(star.x, star.y, star.size, star.size);
+            });
+            ctx.globalAlpha = 1;
+            
+            // Draw moon
+            ctx.fillStyle = '#f5f5dc';
+            ctx.beginPath();
+            ctx.arc(moon.x, moon.y, moon.radius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw welcome message
+            if (showWelcomeMessage && gameRunning) {
+                ctx.fillStyle = 'white';
+                ctx.font = '42px JetBrains Mono, monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('> Hi. This is Siddharth Apoorv. Welcome to My Journey', canvas.width / 2, canvas.height / 2 - 50);
+                ctx.font = '24px JetBrains Mono, monospace';
+                ctx.fillStyle = '#ccc';
+                ctx.fillText('Press SPACE to jump over life milestones', canvas.width / 2, canvas.height / 2);
+                ctx.textAlign = 'left';
+            }
+            
+            // Draw ground
+            ctx.fillStyle = '#333';
+            ctx.fillRect(0, dino.groundY + 10, canvas.width, canvas.height - dino.groundY - 10);
+            
+            // Draw character
+            drawCharacter();
+            
+            // Draw cactuses with titles
+            ctx.fillStyle = '#4CAF50';
+            cactuses.forEach(cactus => {
+                ctx.fillRect(cactus.x, cactus.y - cactus.height, cactus.width, cactus.height);
+                
+                // Draw cactus title above it
+                if (cactus.title) {
+                    ctx.fillStyle = 'white';
+                    ctx.font = '14px JetBrains Mono, monospace';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(cactus.title, cactus.x + cactus.width/2, cactus.y - cactus.height - 10);
+                    ctx.textAlign = 'left';
+                    ctx.fillStyle = '#4CAF50';
+                }
+            });
+            
+            // Draw score
+            ctx.fillStyle = 'white';
+            ctx.font = '18px JetBrains Mono, monospace';
+            ctx.fillText(`> Life Points: ${score}/${cvData.length}`, 20, 30);
+        }
+        
+        function gameLoop() {
+            if (gameRunning) {
+                updateDino();
+                updateCactuses();
+                
+                // Create new cactuses at different intervals
+                const currentTime = Date.now();
+                const timeSinceStart = currentTime - gameStartTime;
+                
+                const initialDelay = showWelcomeMessage ? 2000 : 0;
+                const interval = showWelcomeMessage ? initialCactusInterval : cactusInterval;
+                
+                if (timeSinceStart >= initialDelay && currentTime - lastCactusTime >= interval && currentCvPoint < cvData.length) {
+                    createCactus();
+                }
+            }
+            
+            // Always update background
+            updateBackground();
+            draw();
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Event Listeners
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                
+                if (!gameRunning && cvDisplay.style.display !== 'flex' && gameOver.style.display !== 'flex' && gameComplete.style.display !== 'flex') {
+                    startGame();
+                } else if (!gameRunning && gameOver.style.display === 'flex') {
+                    restartGame();
+                } else if (!gameRunning && gameComplete.style.display === 'flex') {
+                    fullRestartGame();
+                } else if (!gameRunning && cvDisplay.style.display === 'flex') {
+                    // Continue from CV display
+                    cvDisplay.style.display = 'none';
+                    if (gameCompleted) {
+                        gameComplete.style.display = 'flex';
+                    } else {
+                        gameRunning = true;
+                    }
+                } else if (gameRunning) {
+                    jump();
+                }
+            }
+        });
+        
+        continueBtn.addEventListener('click', () => {
+            cvDisplay.style.display = 'none';
+            if (gameCompleted) {
+                gameComplete.style.display = 'flex';
+            } else {
+                gameRunning = true;
+            }
+        });
+        
+        restartBtn.addEventListener('click', () => {
+            restartGame();
+        });
+        
+        restartCompleteBtn.addEventListener('click', () => {
+            fullRestartGame();
+        });
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+        });
+        
+        function startGame() {
+            gameRunning = true;
+            currentCvPoint = 0;
+            lastCvPoint = -1;
+            score = 0;
+            cactuses.length = 0;
+            gameStartTime = Date.now();
+            lastCactusTime = Date.now();
+            showWelcomeMessage = true;
+            gameCompleted = false;
+            gameOver.style.display = 'none';
+            gameComplete.style.display = 'none';
+        }
+        
+        function restartGame() {
+            gameRunning = true;
+            cactuses.length = 0;
+            currentCvPoint = lastCvPoint + 1;
+            gameStartTime = Date.now();
+            lastCactusTime = Date.now();
+            showWelcomeMessage = false;
+            gameOver.style.display = 'none';
+            dino.y = dino.groundY;
+            dino.jumping = false;
+        }
+        
+        function fullRestartGame() {
+            gameRunning = true;
+            currentCvPoint = 0;
+            lastCvPoint = -1;
+            score = 0;
+            cactuses.length = 0;
+            gameStartTime = Date.now();
+            lastCactusTime = Date.now();
+            showWelcomeMessage = true;
+            gameCompleted = false;
+            gameComplete.style.display = 'none';
+            dino.y = dino.groundY;
+            dino.jumping = false;
+        }
+        
+        // Initialize and start the game loop
+        init();
+        gameLoop();
+    </script>
+</body>
+</html>
