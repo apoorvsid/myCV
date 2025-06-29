@@ -145,12 +145,12 @@
         const gameComplete = document.getElementById('gameComplete');
         const restartCompleteBtn = document.getElementById('restartCompleteBtn');
         
-        // Game Constants
-        const GAME_SPEED = 4;
-        const JUMP_POWER = -15;
-        const GRAVITY = 0.6;
-        const STAR_SPEED = 0.2;
-        const MOON_SPEED = 0.1;
+        // Game Constants - Increased speed and improved timing
+        const GAME_SPEED = 9; // Increased from 7
+        const JUMP_POWER = -17; // Increased jump power for faster pace
+        const GRAVITY = 0.8; // Increased gravity for quicker landing
+        const STAR_SPEED = 0.4; // Increased star movement
+        const MOON_SPEED = 0.2; // Increased moon movement
         
         // Set canvas size to full screen
         function resizeCanvas() {
@@ -173,8 +173,7 @@
         let lastCvPoint = -1;
         let score = 0;
         let lastCactusTime = 0;
-        const cactusInterval = 1000;
-        const initialCactusInterval = 2000;
+        let nextCactusDelay = 0; // Dynamic delay for next cactus
         let gameStartTime = 0;
         let showWelcomeMessage = true;
         let gameCompleted = false;
@@ -313,6 +312,12 @@
             originalX: 650
         };
         
+        // Function to generate random delay for next cactus
+        function getRandomCactusDelay() {
+            // Random delay between 800ms to 2500ms for more variety
+            return Math.random() * 1700 + 800;
+        }
+        
         // Initialize canvas and create stars
         function init() {
             resizeCanvas();
@@ -328,6 +333,9 @@
                     speed: Math.random() * STAR_SPEED + 0.1
                 });
             }
+            
+            // Set initial random delay
+            nextCactusDelay = getRandomCactusDelay();
         }
         
         // Game Functions
@@ -345,6 +353,7 @@
                 });
                 currentCvPoint++;
                 lastCactusTime = Date.now();
+                nextCactusDelay = getRandomCactusDelay(); // Set new random delay
                 showWelcomeMessage = false;
             }
         }
@@ -362,7 +371,7 @@
         }
         
         function updateBackground() {
-            // Move stars slowly
+            // Move stars faster
             stars.forEach(star => {
                 star.x -= star.speed;
                 if (star.x < 0) {
@@ -371,7 +380,7 @@
                 }
             });
             
-            // Move moon slowly
+            // Move moon faster
             moon.x -= MOON_SPEED;
             if (moon.x < -moon.radius) {
                 moon.x = canvas.width + moon.radius;
@@ -527,14 +536,13 @@
                 updateDino();
                 updateCactuses();
                 
-                // Create new cactuses at different intervals
+                // Create new cactuses with random intervals
                 const currentTime = Date.now();
                 const timeSinceStart = currentTime - gameStartTime;
                 
-                const initialDelay = showWelcomeMessage ? 2000 : 0;
-                const interval = showWelcomeMessage ? initialCactusInterval : cactusInterval;
+                const initialDelay = showWelcomeMessage ? 1500 : 0; // Reduced initial delay
                 
-                if (timeSinceStart >= initialDelay && currentTime - lastCactusTime >= interval && currentCvPoint < cvData.length) {
+                if (timeSinceStart >= initialDelay && currentTime - lastCactusTime >= nextCactusDelay && currentCvPoint < cvData.length) {
                     createCactus();
                 }
             }
@@ -601,6 +609,7 @@
             cactuses.length = 0;
             gameStartTime = Date.now();
             lastCactusTime = Date.now();
+            nextCactusDelay = getRandomCactusDelay();
             showWelcomeMessage = true;
             gameCompleted = false;
             gameOver.style.display = 'none';
@@ -613,6 +622,7 @@
             currentCvPoint = lastCvPoint + 1;
             gameStartTime = Date.now();
             lastCactusTime = Date.now();
+            nextCactusDelay = getRandomCactusDelay();
             showWelcomeMessage = false;
             gameOver.style.display = 'none';
             dino.y = dino.groundY;
@@ -627,6 +637,7 @@
             cactuses.length = 0;
             gameStartTime = Date.now();
             lastCactusTime = Date.now();
+            nextCactusDelay = getRandomCactusDelay();
             showWelcomeMessage = true;
             gameCompleted = false;
             gameComplete.style.display = 'none';
