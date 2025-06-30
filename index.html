@@ -29,7 +29,7 @@
             width: 100%;
             height: 100%;
         }
-        .cv-display, .game-over, .game-complete {
+        .cv-display, .game-over, .game-complete, .start-screen {
             position: absolute;
             top: 0;
             left: 0;
@@ -44,6 +44,20 @@
             text-align: center;
             padding: 40px 20px;
             box-sizing: border-box;
+        }
+        .start-screen {
+            background-color: rgba(0, 0, 20, 0.9);
+            justify-content: center;
+            display: flex;
+        }
+        .start-screen h1 {
+            font-size: 48px;
+            margin-bottom: 30px;
+            color: #4CAF50;
+        }
+        .start-screen p {
+            font-size: 24px;
+            color: #ccc;
         }
         #cvContent {
             max-width: 900px;
@@ -119,6 +133,12 @@
 <body>
     <div class="game-container">
         <canvas id="gameCanvas"></canvas>
+        <div id="startScreen" class="start-screen">
+            <div>
+                <h1>> My Life Journey</h1>
+                <p>Press SPACE to begin</p>
+            </div>
+        </div>
         <div id="cvDisplay" class="cv-display">
             <div id="cvContent"></div>
             <button id="continueBtn">Continue Journey (Space)</button>
@@ -137,6 +157,7 @@
         // Game Canvas Setup
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        const startScreen = document.getElementById('startScreen');
         const cvDisplay = document.getElementById('cvDisplay');
         const cvContent = document.getElementById('cvContent');
         const continueBtn = document.getElementById('continueBtn');
@@ -169,6 +190,7 @@
         // Game State
         let gameSpeed = GAME_SPEED;
         let gameRunning = false;
+        let gameStarted = false; // New flag to track if game has ever been started
         let currentCvPoint = 0;
         let lastCvPoint = -1;
         let score = 0;
@@ -490,8 +512,8 @@
             ctx.arc(moon.x, moon.y, moon.radius, 0, Math.PI * 2);
             ctx.fill();
             
-            // Draw welcome message
-            if (showWelcomeMessage && gameRunning) {
+            // Draw welcome message (only show after game has started)
+            if (showWelcomeMessage && gameRunning && gameStarted) {
                 ctx.fillStyle = 'white';
                 ctx.font = '42px JetBrains Mono, monospace';
                 ctx.textAlign = 'center';
@@ -502,33 +524,35 @@
                 ctx.textAlign = 'left';
             }
             
-            // Draw ground
-            ctx.fillStyle = '#333';
-            ctx.fillRect(0, dino.groundY + 10, canvas.width, canvas.height - dino.groundY - 10);
-            
-            // Draw character
-            drawCharacter();
-            
-            // Draw cactuses with titles
-            ctx.fillStyle = '#4CAF50';
-            cactuses.forEach(cactus => {
-                ctx.fillRect(cactus.x, cactus.y - cactus.height, cactus.width, cactus.height);
+            // Draw ground (only if game has started)
+            if (gameStarted) {
+                ctx.fillStyle = '#333';
+                ctx.fillRect(0, dino.groundY + 10, canvas.width, canvas.height - dino.groundY - 10);
                 
-                // Draw cactus title above it
-                if (cactus.title) {
-                    ctx.fillStyle = 'white';
-                    ctx.font = '14px JetBrains Mono, monospace';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(cactus.title, cactus.x + cactus.width/2, cactus.y - cactus.height - 10);
-                    ctx.textAlign = 'left';
-                    ctx.fillStyle = '#4CAF50';
-                }
-            });
-            
-            // Draw score
-            ctx.fillStyle = 'white';
-            ctx.font = '18px JetBrains Mono, monospace';
-            ctx.fillText(`> Life Points: ${score}/${cvData.length}`, 20, 30);
+                // Draw character
+                drawCharacter();
+                
+                // Draw cactuses with titles
+                ctx.fillStyle = '#4CAF50';
+                cactuses.forEach(cactus => {
+                    ctx.fillRect(cactus.x, cactus.y - cactus.height, cactus.width, cactus.height);
+                    
+                    // Draw cactus title above it
+                    if (cactus.title) {
+                        ctx.fillStyle = 'white';
+                        ctx.font = '14px JetBrains Mono, monospace';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(cactus.title, cactus.x + cactus.width/2, cactus.y - cactus.height - 10);
+                        ctx.textAlign = 'left';
+                        ctx.fillStyle = '#4CAF50';
+                    }
+                });
+                
+                // Draw score
+                ctx.fillStyle = 'white';
+                ctx.font = '18px JetBrains Mono, monospace';
+                ctx.fillText(`> Life Points: ${score}/${cvData.length}`, 20, 30);
+            }
         }
         
         function gameLoop() {
@@ -559,7 +583,12 @@
             if (e.code === 'Space') {
                 e.preventDefault();
                 
-                if (!gameRunning && cvDisplay.style.display !== 'flex' && gameOver.style.display !== 'flex' && gameComplete.style.display !== 'flex') {
+                // Handle start screen
+                if (!gameStarted && startScreen.style.display !== 'none') {
+                    startScreen.style.display = 'none';
+                    gameStarted = true;
+                    startGame();
+                } else if (!gameRunning && cvDisplay.style.display !== 'flex' && gameOver.style.display !== 'flex' && gameComplete.style.display !== 'flex') {
                     startGame();
                 } else if (!gameRunning && gameOver.style.display === 'flex') {
                     restartGame();
